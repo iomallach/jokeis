@@ -1,6 +1,9 @@
 // Uncomment this block to pass the first stage
 use anyhow::Result;
-use std::{io::Write, net::TcpListener};
+use std::{
+    io::{Read, Write},
+    net::TcpListener,
+};
 
 use bytes::Bytes;
 
@@ -21,7 +24,16 @@ fn main() -> Result<()> {
         match stream {
             Ok(mut stream) => {
                 println!("accepted new connection");
-                stream.write_all("+PONG\r\n".as_bytes())?;
+                let mut buf = [0u8; 64];
+                loop {
+                    match stream.read(&mut buf) {
+                        Ok(0) => {}
+                        Ok(_) => {
+                            stream.write_all("+PONG\r\n".as_bytes())?;
+                        }
+                        Err(_) => {}
+                    }
+                }
             }
             Err(e) => {
                 println!("error: {}", e);
