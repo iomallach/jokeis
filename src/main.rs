@@ -21,7 +21,7 @@ fn main() -> Result<()> {
         match stream {
             Ok(mut stream) => {
                 println!("accepted new connection");
-                stream.write_all("+PING\r\n".as_bytes())?;
+                stream.write_all("+PONG\r\n".as_bytes())?;
             }
             Err(e) => {
                 println!("error: {}", e);
