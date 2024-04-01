@@ -1,44 +1,45 @@
 // Uncomment this block to pass the first stage
 use anyhow::Result;
-use std::{
-    io::{Read, Write},
-    net::TcpListener,
-};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream}};
 
 use bytes::Bytes;
+
 
 // TODO: ignore at the moment as we don't know the protocol yet
 enum Command {
     Ping(Option<Bytes>),
 }
 
-fn main() -> Result<()> {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
+async fn process_socket(mut stream: TcpStream) {
+    let mut buf = [0u8; 64];
+
+    loop {
+    match stream.read(&mut buf).await {
+        Ok(0) => {
+            break;
+        },
+        Ok(_) => {
+            stream.write_all("+PONG\r\n".as_bytes()).await.expect("Connection died");
+        },
+        Err(_) => {
+            break;
+        },
+    }
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
     println!("Logs from your program will appear here!");
 
-    // Uncomment this block to pass the first stage
-    //
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
+    let listener = TcpListener::bind("127.0.0.1:6379").await?;
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                println!("accepted new connection");
-                let mut buf = [0u8; 64];
-                loop {
-                    match stream.read(&mut buf) {
-                        Ok(0) => {}
-                        Ok(_) => {
-                            stream.write_all("+PONG\r\n".as_bytes())?;
-                        }
-                        Err(_) => {}
-                    }
-                }
-            }
-            Err(e) => {
-                println!("error: {}", e);
-            }
-        }
+    loop {
+        let (stream, sock_addr) = listener.accept().await?;
+        println!("New client at {}", sock_addr);
+
+        tokio::spawn(async move {
+            process_socket(stream).await;
+        });
     }
-    Ok(())
 }
