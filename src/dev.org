@@ -1,0 +1,10 @@
+* Roadmap
+** Explore edge cases in parsing
+Currently it is a dumb implementation, does not check for
+specific errors, like data not conforming to RESP.
+There are apart from that no checks on length.
+
+** Explore "frame" tracking like [[https://github.com/tokio-rs/mini-redis/][in this mini-redis implementation]]
+** TODO Add command parsing
+** TODO Implement ECHO using the parser in place
+** TODO Implement PING using the parses in place
