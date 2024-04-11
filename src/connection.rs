@@ -50,3 +50,22 @@ impl<W: AsyncWrite + AsyncRead + Unpin> Connection<W> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    async fn test_write_message() {
+        let mut buf = Vec::new();
+        let mut buf = std::io::Cursor::new(&mut buf);
+        let mut conn = Connection::new(&mut buf);
+        conn.write_message(message::Value::BulkString("hello_world".into()))
+            .await
+            .unwrap();
+        let res = std::str::from_utf8(buf.get_ref()).unwrap();
+        if res != "$11\r\nhello_world\r\n" {
+            panic!("unexpected result {res} written, expected '$11\r\nhello_world\r\n'");
+        }
+    }
+}

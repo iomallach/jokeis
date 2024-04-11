@@ -12,21 +12,12 @@ mod message;
 async fn process_socket(mut conn: connection::Connection<TcpStream>) -> Result<()> {
     loop {
         let command = Command::from_value(conn.read_message().await?)?;
-    }
-    let mut buf = [0u8; 64];
-    loop {
-        match stream.read(&mut buf).await {
-            Ok(0) => {
-                break;
+        match command {
+            Command::Ping(s) => {
+                conn.write_message(Value::BulkString(s.msg)).await?;
             }
-            Ok(_) => {
-                stream
-                    .write_all("+PONG\r\n".as_bytes())
-                    .await
-                    .expect("Connection died");
-            }
-            Err(_) => {
-                break;
+            Command::Echo(s) => {
+                conn.write_message(Value::BulkString(s.msg)).await?;
             }
         }
     }
@@ -45,7 +36,7 @@ async fn main() -> Result<()> {
                 let connection = connection::Connection::new(stream);
 
                 tokio::spawn(async move {
-                    process_socket(stream).await;
+                    let _ = process_socket(connection).await;
                 });
             }
             Err(e) => {

@@ -39,8 +39,8 @@ pub enum Command {
     Echo(Echo),
 }
 
-struct Ping {
-    msg: Bytes,
+pub struct Ping {
+    pub msg: Bytes,
 }
 
 impl Ping {
@@ -54,8 +54,8 @@ impl Ping {
         }
     }
 }
-struct Echo {
-    msg: Bytes,
+pub struct Echo {
+    pub msg: Bytes,
 }
 
 impl Echo {
@@ -80,6 +80,7 @@ impl Command {
         match cmd_name.as_str() {
             "ping" => Ok(Command::Ping(Ping::parse(parser)?)),
             "echo" => Ok(Command::Echo(Echo::parse(parser)?)),
+            _ => Err(anyhow::anyhow!("Unsupported command")),
         }
     }
 }
@@ -106,7 +107,7 @@ impl Value {
         let mut buf = BytesMut::with_capacity(4 * 1024);
         match self {
             Self::BulkString(s) => {
-                write!(buf, "${}\r\n", s.len());
+                write!(buf, "${}\r\n", s.len()).expect("failed converting bulk string to bytes");
                 buf.extend_from_slice(s);
                 buf.put(&b"\r\n"[..]);
             }
@@ -175,7 +176,10 @@ fn parse_bulk_str<'a>(cur: &mut Cursor<&'a [u8]>, length: usize) -> Result<Value
     let bstr = &cur.get_ref()[start..start + length as usize];
     cur.set_position(start as u64 + length as u64 + 2);
 
-    Ok(Value::BulkString(bstr.into()))
+    // TODO: Could this be done better?
+    Ok(Value::BulkString(Bytes::from(
+        bstr.iter().cloned().collect::<Vec<_>>(),
+    )))
 }
 
 #[cfg(test)]
@@ -226,6 +230,35 @@ mod tests {
                 }
             }
             Err(e) => panic!("Parsing failed {e}"),
+        }
+    }
+
+    #[test]
+    fn test_command_parser_parse_string() {
+        let value = Value::Array(vec![
+            Value::BulkString(b"ECHO"[..].into()),
+            Value::BulkString(b"hello_world"[..].into()),
+        ]);
+        let mut parser = CommandParser::new(value).expect("expected array");
+
+        match parser.next_string() {
+            Ok(b) => {
+                let mp = std::str::from_utf8(&b[..]).expect("expected utf-8 encoded bytes");
+                if mp != "ECHO" {
+                    panic!("unexpected string {mp}, expected echo")
+                }
+            }
+            Err(e) => panic!("unexpected parse error: {e}"),
+        }
+
+        match parser.next_string() {
+            Ok(b) => {
+                let argument = std::str::from_utf8(&b[..]).expect("expected utf-8 encoded bytes");
+                if argument != "hello_world" {
+                    panic!("unexpected string")
+                }
+            }
+            Err(e) => panic!("unexpected parse error: {e}"),
         }
     }
 }
